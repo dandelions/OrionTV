@@ -23,6 +23,16 @@ RCT_EXPORT_METHOD(exitApp)
 @end
 `;
 
+const IOS_ONLY_INFO_PLIST_KEYS = [
+  "CADisableMinimumFrameDurationOnPhone",
+  "LSRequiresIPhoneOS",
+  "UIRequiresFullScreen",
+  "UIStatusBarStyle",
+  "UISupportedInterfaceOrientations",
+  "UISupportedInterfaceOrientations~ipad",
+  "UIViewControllerBasedStatusBarAppearance",
+];
+
 const withOrionExitApp = (config) => {
   config = withDangerousMod(config, [
     "ios",
@@ -53,7 +63,9 @@ const withOrionExitApp = (config) => {
   });
 
   config = withInfoPlist(config, (config) => {
-    delete config.modResults.LSRequiresIPhoneOS;
+    for (const key of IOS_ONLY_INFO_PLIST_KEYS) {
+      delete config.modResults[key];
+    }
     return config;
   });
 
