@@ -16,6 +16,7 @@ import { getCommonResponsiveStyles } from "@/utils/ResponsiveStyles";
 import ResponsiveNavigation from "@/components/navigation/ResponsiveNavigation";
 import { useApiConfig, getApiConfigErrorMessage } from "@/hooks/useApiConfig";
 import { Colors } from "@/constants/Colors";
+import { MAIN_ROUTES, navigateToMainRoute } from "@/utils/navigation";
 
 const LOAD_MORE_THRESHOLD = 200;
 
@@ -53,7 +54,7 @@ export default function HomeScreen() {
     }, [refreshPlayRecords])
   );
 
-    // 双击返回退出逻辑（只限当前页面）
+  // 双击返回退出逻辑（只限当前页面）
   const backPressTimeRef = useRef<number | null>(null);
 
   useFocusEffect(
@@ -73,8 +74,7 @@ export default function HomeScreen() {
       return true;
     };
 
-    // 仅限 Android 平台启用此功能
-    if (Platform.OS === "android") {
+    if (Platform.OS === "android" && deviceType !== "tv") {
       const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackPress);
 
       // 返回首页时重置状态
@@ -83,7 +83,7 @@ export default function HomeScreen() {
         backPressTimeRef.current = null;
       };
     }
-  }, [])
+  }, [deviceType])
 );
 
   // 统一的数据获取逻辑
@@ -200,24 +200,24 @@ export default function HomeScreen() {
       <View style={dynamicStyles.headerContainer}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <ThemedText style={dynamicStyles.headerTitle}>首页</ThemedText>
-          <Pressable android_ripple={Platform.isTV || deviceType !== 'tv'? { color: 'transparent' } : { color: Colors.dark.link }} style={{ marginLeft: 20 }} onPress={() => router.push("/live")}>
+          <Pressable android_ripple={Platform.isTV || deviceType !== 'tv'? { color: 'transparent' } : { color: Colors.dark.link }} style={{ marginLeft: 20 }} onPress={() => navigateToMainRoute(router, MAIN_ROUTES.live)}>
             {({ focused }) => (
               <ThemedText style={[dynamicStyles.headerTitle, { color: focused ? "white" : "grey" }]}>直播</ThemedText>
             )}
           </Pressable>
         </View>
         <View style={dynamicStyles.rightHeaderButtons}>
-          <StyledButton style={dynamicStyles.iconButton} onPress={() => router.push("/favorites")} variant="ghost">
+          <StyledButton style={dynamicStyles.iconButton} onPress={() => navigateToMainRoute(router, MAIN_ROUTES.favorites)} variant="ghost">
             <Heart color={colorScheme === "dark" ? "white" : "black"} size={24} />
           </StyledButton>
           <StyledButton
             style={dynamicStyles.iconButton}
-            onPress={() => router.push({ pathname: "/search" })}
+            onPress={() => navigateToMainRoute(router, MAIN_ROUTES.search)}
             variant="ghost"
           >
             <Search color={colorScheme === "dark" ? "white" : "black"} size={24} />
           </StyledButton>
-          <StyledButton style={dynamicStyles.iconButton} onPress={() => router.push("/settings")} variant="ghost">
+          <StyledButton style={dynamicStyles.iconButton} onPress={() => navigateToMainRoute(router, MAIN_ROUTES.settings)} variant="ghost">
             <Settings color={colorScheme === "dark" ? "white" : "black"} size={24} />
           </StyledButton>
           {isLoggedIn && (
@@ -366,6 +366,7 @@ export default function HomeScreen() {
             loadMoreThreshold={LOAD_MORE_THRESHOLD}
             emptyMessage={selectedCategory?.tags ? "请选择一个子分类" : "该分类下暂无内容"}
             ListFooterComponent={renderFooter}
+            handleBackToTop={false}
           />
         </Animated.View>
       )}

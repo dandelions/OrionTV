@@ -1,5 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import * as ReactNative from "react-native";
 import { Pause, Play, SkipForward, List, Tv, ArrowDownToDot, ArrowUpFromDot, Gauge } from "lucide-react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { MediaButton } from "@/components/MediaButton";
@@ -42,6 +43,11 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({ showControls, se
   const currentSource = resources.find((r) => r.source === detail?.source);
   const currentSourceName = currentSource?.source_name;
   const hasNextEpisode = currentEpisodeIndex < (episodes.length || 0) - 1;
+  const TVFocusGuideView = (ReactNative as any).TVFocusGuideView;
+  const ControlsRow = TVFocusGuideView || View;
+  const controlsRowProps = TVFocusGuideView
+    ? { autoFocus: true, trapFocusLeft: true, trapFocusRight: true }
+    : {};
 
   const formatTime = (milliseconds: number) => {
     if (!milliseconds) return "00:00";
@@ -77,7 +83,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({ showControls, se
               },
             ]}
           />
-          <Pressable style={styles.progressBarTouchable} />
+          <Pressable focusable={false} style={styles.progressBarTouchable} />
         </View>
 
         <ThemedText style={{ color: "white", marginTop: 5 }}>
@@ -86,7 +92,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({ showControls, se
             : "00:00 / 00:00"}
         </ThemedText>
 
-        <View style={styles.bottomControls}>
+        <ControlsRow {...controlsRowProps} style={styles.bottomControls}>
           <MediaButton onPress={setIntroEndTime} timeLabel={introEndTime ? formatTime(introEndTime) : undefined}>
             <ArrowDownToDot color="white" size={24} />
           </MediaButton>
@@ -118,7 +124,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({ showControls, se
           <MediaButton onPress={() => setShowSourceModal(true)}>
             <Tv color="white" size={24} />
           </MediaButton>
-        </View>
+        </ControlsRow>
       </View>
     </View>
   );

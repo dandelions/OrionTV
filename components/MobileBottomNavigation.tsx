@@ -5,12 +5,13 @@ import { Home, Heart, Search, Settings, Tv } from 'lucide-react-native';
 import { ThemedText } from '@/components/ThemedText';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { DeviceUtils } from '@/utils/DeviceUtils';
+import { MAIN_ROUTES, MainRoute, navigateToMainRoute } from '@/utils/navigation';
 
 interface NavigationItem {
   name: string;
   label: string;
   icon: any;
-  route: string;
+  route: MainRoute;
 }
 
 const navigationItems: NavigationItem[] = [
@@ -18,31 +19,31 @@ const navigationItems: NavigationItem[] = [
     name: 'home',
     label: '首页',
     icon: Home,
-    route: '/',
+    route: MAIN_ROUTES.home,
   },
   {
     name: 'live',
     label: '直播',
     icon: Tv,
-    route: '/live',
+    route: MAIN_ROUTES.live,
   },
   {
     name: 'search',
     label: '搜索',
     icon: Search,
-    route: '/search',
+    route: MAIN_ROUTES.search,
   },
   {
     name: 'favorites',
     label: '收藏',
     icon: Heart,
-    route: '/favorites',
+    route: MAIN_ROUTES.favorites,
   },
   {
     name: 'settings',
     label: '设置',
     icon: Settings,
-    route: '/settings',
+    route: MAIN_ROUTES.settings,
   },
 ];
 
@@ -67,15 +68,11 @@ export const MobileBottomNavigation: React.FC<MobileBottomNavigationProps> = ({
     responsiveConfig.deviceType !== 'mobile' || item.name !== 'live'
   );
 
-  const handleNavigation = (route: string) => {
-    if (route === '/') {
-      router.push('/');
-    } else {
-      router.push(route as any);
-    }
+  const handleNavigation = (route: MainRoute) => {
+    navigateToMainRoute(router, route);
   };
 
-  const isActiveRoute = (route: string) => {
+  const isActiveRoute = (route: MainRoute) => {
     if (route === '/') {
       return pathname === '/';
     }

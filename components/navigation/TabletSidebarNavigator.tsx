@@ -6,21 +6,22 @@ import { Colors } from '@/constants/Colors';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { DeviceUtils } from '@/utils/DeviceUtils';
 import { ThemedText } from '@/components/ThemedText';
+import { MAIN_ROUTES, MainRoute, navigateToMainRoute } from '@/utils/navigation';
 
 interface SidebarItem {
   key: string;
   label: string;
   icon: React.ComponentType<any>;
-  route: string;
+  route: MainRoute;
   section?: string;
 }
 
 const sidebarItems: SidebarItem[] = [
-  { key: 'home', label: '首页', icon: Home, route: '/', section: 'main' },
-  { key: 'search', label: '搜索', icon: Search, route: '/search', section: 'main' },
-  { key: 'live', label: '直播', icon: Tv, route: '/live', section: 'main' },
-  { key: 'favorites', label: '收藏', icon: Heart, route: '/favorites', section: 'user' },
-  { key: 'settings', label: '设置', icon: Settings, route: '/settings', section: 'user' },
+  { key: 'home', label: '首页', icon: Home, route: MAIN_ROUTES.home, section: 'main' },
+  { key: 'search', label: '搜索', icon: Search, route: MAIN_ROUTES.search, section: 'main' },
+  { key: 'live', label: '直播', icon: Tv, route: MAIN_ROUTES.live, section: 'main' },
+  { key: 'favorites', label: '收藏', icon: Heart, route: MAIN_ROUTES.favorites, section: 'user' },
+  { key: 'settings', label: '设置', icon: Settings, route: MAIN_ROUTES.settings, section: 'user' },
 ];
 
 interface TabletSidebarNavigatorProps {
@@ -51,12 +52,8 @@ const TabletSidebarNavigator: React.FC<TabletSidebarNavigatorProps> = ({
     }
   };
 
-  const handleItemPress = (route: string) => {
-    if (route === '/') {
-      router.push('/');
-    } else {
-      router.push(route as any);
-    }
+  const handleItemPress = (route: MainRoute) => {
+    navigateToMainRoute(router, route);
     
     // 在竖屏模式下，导航后自动折叠侧边栏
     if (isPortrait && !controlledCollapsed) {
@@ -64,7 +61,7 @@ const TabletSidebarNavigator: React.FC<TabletSidebarNavigatorProps> = ({
     }
   };
 
-  const isItemActive = (route: string) => {
+  const isItemActive = (route: MainRoute) => {
     if (route === '/' && pathname === '/') return true;
     if (route !== '/' && pathname === route) return true;
     return false;

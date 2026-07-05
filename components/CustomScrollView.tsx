@@ -15,6 +15,7 @@ interface CustomScrollViewProps {
   loadMoreThreshold?: number;
   emptyMessage?: string;
   ListFooterComponent?: React.ComponentType<any> | React.ReactElement | null;
+  handleBackToTop?: boolean;
 }
 
 const CustomScrollView: React.FC<CustomScrollViewProps> = ({
@@ -28,6 +29,7 @@ const CustomScrollView: React.FC<CustomScrollViewProps> = ({
   loadMoreThreshold = 200,
   emptyMessage = "暂无内容",
   ListFooterComponent,
+  handleBackToTop = true,
 }) => {
   const scrollViewRef = useRef<ScrollView>(null);
   const firstCardRef = useRef<any>(null); // <--- 新增
@@ -38,7 +40,7 @@ const CustomScrollView: React.FC<CustomScrollViewProps> = ({
 
   // 添加返回键处理逻辑
   useEffect(() => {
-    if (deviceType === 'tv') {
+    if (deviceType === 'tv' && handleBackToTop) {
       const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
         if (showScrollToTop) {
           scrollToTop();
@@ -49,7 +51,7 @@ const CustomScrollView: React.FC<CustomScrollViewProps> = ({
 
       return () => backHandler.remove();
     }
-  }, [showScrollToTop,deviceType]);
+  }, [handleBackToTop, showScrollToTop, deviceType]);
 
   // 使用响应式列数，如果没有明确指定的话
   const effectiveColumns = numColumns || responsiveConfig.columns;

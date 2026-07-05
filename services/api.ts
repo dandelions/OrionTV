@@ -73,6 +73,8 @@ export interface ApiSite {
 export interface ServerConfig {
   SiteName: string;
   StorageType: "localstorage" | "redis" | string;
+  LoginRequireTurnstile?: boolean;
+  TurnstileSiteKey?: string;
 }
 
 export class API {
@@ -88,12 +90,57 @@ export class API {
     this.baseURL = url;
   }
 
+  private normalizeCookieHeader(cookie: string): string {
+    const authMatch = cookie.match(/(?:^|,\s*)auth=([^;,\s]+)/);
+    if (authMatch?.[1]) {
+      return `auth=${authMatch[1]}`;
+    }
+
+    if (cookie.includes("=")) {
+      return cookie.split(";")[0];
+    }
+
+    return `auth=${cookie}`;
+  }
+
+  private async getAuthHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {
+      "User-Agent": "OrionTV",
+    };
+    const authCookies = await AsyncStorage.getItem("authCookies");
+    const authToken = await AsyncStorage.getItem("authToken");
+
+    if (authCookies) {
+      headers.Cookie = this.normalizeCookieHeader(authCookies);
+    }
+
+    if (authToken) {
+      headers.Authorization = `Bearer ${authToken}`;
+    }
+
+    return headers;
+  }
+
+  private mergeHeaders(
+    authHeaders: Record<string, string>,
+    requestHeaders?: HeadersInit
+  ): HeadersInit {
+    return {
+      ...authHeaders,
+      ...(requestHeaders || {}),
+    };
+  }
+
   private async _fetch(url: string, options: RequestInit = {}): Promise<Response> {
     if (!this.baseURL) {
       throw new Error("API_URL_NOT_SET");
     }
 
-    const response = await fetch(`${this.baseURL}${url}`, options);
+    const authHeaders = await this.getAuthHeaders();
+    const response = await fetch(`${this.baseURL}${url}`, {
+      ...options,
+      headers: this.mergeHeaders(authHeaders, options.headers),
+    });
 
     if (response.status === 401) {
       throw new Error("UNAUTHORIZED");
@@ -106,7 +153,7 @@ export class API {
     return response;
   }
 
-  async login(username?: string | undefined, password?: string): Promise<{ ok: boolean }> {
+  async login(username?: string | undefined, password?: string): Promise<{ ok: boolean; token?: string; error?: string }> {
     const response = await this._fetch("/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -119,15 +166,27 @@ export class API {
       await AsyncStorage.setItem("authCookies", cookies);
     }
 
-    return response.json();
+    const result = await response.json();
+    if (result.token) {
+      await AsyncStorage.setItem("authToken", result.token);
+      if (!cookies) {
+        await AsyncStorage.setItem("authCookies", `auth=${result.token}`);
+      }
+    }
+
+    return result;
   }
 
   async logout(): Promise<{ ok: boolean }> {
-    const response = await this._fetch("/api/logout", {
-      method: "POST",
-    });
-    await AsyncStorage.setItem("authCookies", '');
-    return response.json();
+    try {
+      const response = await this._fetch("/api/logout", {
+        method: "POST",
+      });
+      return response.json();
+    } finally {
+      await AsyncStorage.removeItem("authCookies");
+      await AsyncStorage.removeItem("authToken");
+    }
   }
 
   async getServerConfig(): Promise<ServerConfig> {

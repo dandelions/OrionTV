@@ -1,6 +1,5 @@
 import React, { useCallback } from "react";
 import { View, Switch, StyleSheet, Pressable, Animated, Platform, TouchableOpacity } from "react-native";
-import { useTVEventHandler } from "react-native";
 import { ThemedText } from "@/components/ThemedText";
 import { SettingsSection } from "./SettingsSection";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -8,6 +7,7 @@ import { useRemoteControlStore } from "@/stores/remoteControlStore";
 import { useButtonAnimation } from "@/hooks/useAnimation";
 import { Colors } from "@/constants/Colors";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
+import { useSafeTVEventHandler } from "@/hooks/useSafeTVEventHandler";
 
 interface RemoteInputSectionProps {
   onChanged: () => void;
@@ -55,7 +55,7 @@ export const RemoteInputSection: React.FC<RemoteInputSectionProps> = ({ onChange
     [isFocused, remoteInputEnabled, handleToggle]
   );
 
-  useTVEventHandler(handleTVEvent);
+  useSafeTVEventHandler(deviceType === "tv" ? handleTVEvent : undefined);
 
   return (
     <SettingsSection focusable onFocus={handleSectionFocus} onBlur={handleSectionBlur}

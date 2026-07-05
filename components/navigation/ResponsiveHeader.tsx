@@ -6,6 +6,7 @@ import { ThemedText } from '@/components/ThemedText';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { DeviceUtils } from '@/utils/DeviceUtils';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { MAIN_ROUTES, navigateToMainRoute } from '@/utils/navigation';
 
 interface ResponsiveHeaderProps {
   title?: string;
@@ -34,6 +35,8 @@ const ResponsiveHeader: React.FC<ResponsiveHeaderProps> = ({
       onBackPress();
     } else if (router.canGoBack()) {
       router.back();
+    } else {
+      navigateToMainRoute(router, MAIN_ROUTES.home);
     }
   };
 

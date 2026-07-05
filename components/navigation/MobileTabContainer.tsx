@@ -1,24 +1,25 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Platform } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { Home, Search, Heart, Settings, Tv } from 'lucide-react-native';
 import { Colors } from '@/constants/Colors';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { DeviceUtils } from '@/utils/DeviceUtils';
+import { MAIN_ROUTES, MainRoute, navigateToMainRoute } from '@/utils/navigation';
 
 interface TabItem {
   key: string;
   label: string;
   icon: React.ComponentType<any>;
-  route: string;
+  route: MainRoute;
 }
 
 const tabs: TabItem[] = [
-  { key: 'home', label: '首页', icon: Home, route: '/' },
-  { key: 'search', label: '搜索', icon: Search, route: '/search' },
-  { key: 'live', label: '直播', icon: Tv, route: '/live' },
-  { key: 'favorites', label: '收藏', icon: Heart, route: '/favorites' },
-  { key: 'settings', label: '设置', icon: Settings, route: '/settings' },
+  { key: 'home', label: '首页', icon: Home, route: MAIN_ROUTES.home },
+  { key: 'search', label: '搜索', icon: Search, route: MAIN_ROUTES.search },
+  { key: 'live', label: '直播', icon: Tv, route: MAIN_ROUTES.live },
+  { key: 'favorites', label: '收藏', icon: Heart, route: MAIN_ROUTES.favorites },
+  { key: 'settings', label: '设置', icon: Settings, route: MAIN_ROUTES.settings },
 ];
 
 interface MobileTabContainerProps {
@@ -35,15 +36,11 @@ const MobileTabContainer: React.FC<MobileTabContainerProps> = ({ children }) => 
     deviceType !== 'mobile' || tab.key !== 'live'
   );
   
-  const handleTabPress = (route: string) => {
-    if (route === '/') {
-      router.push('/');
-    } else {
-      router.push(route as any);
-    }
+  const handleTabPress = (route: MainRoute) => {
+    navigateToMainRoute(router, route);
   };
 
-  const isTabActive = (route: string) => {
+  const isTabActive = (route: MainRoute) => {
     if (route === '/' && pathname === '/') return true;
     if (route !== '/' && pathname === route) return true;
     return false;

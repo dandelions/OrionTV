@@ -19,6 +19,7 @@ import ResponsiveNavigation from "@/components/navigation/ResponsiveNavigation";
 import ResponsiveHeader from "@/components/navigation/ResponsiveHeader";
 import { DeviceUtils } from "@/utils/DeviceUtils";
 import Logger from '@/utils/Logger';
+import { MAIN_ROUTES, navigateToMainRoute } from "@/utils/navigation";
 
 const logger = Logger.withTag('SearchScreen');
 
@@ -87,7 +88,7 @@ export default function SearchScreen() {
     if (!remoteInputEnabled) {
       Alert.alert("远程输入未启用", "请先在设置页面中启用远程输入功能", [
         { text: "取消", style: "cancel" },
-        { text: "去设置", onPress: () => router.push("/settings") },
+        { text: "去设置", onPress: () => navigateToMainRoute(router, MAIN_ROUTES.settings) },
       ]);
       return;
     }
@@ -158,6 +159,7 @@ export default function SearchScreen() {
           loading={loading}
           error={error}
           emptyMessage="输入关键词开始搜索"
+          handleBackToTop={false}
         />
       )}
       <RemoteControlModal />

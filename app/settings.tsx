@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
 import { View, StyleSheet, Alert, Platform } from "react-native";
-import { useTVEventHandler } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
@@ -21,6 +20,7 @@ import ResponsiveNavigation from "@/components/navigation/ResponsiveNavigation";
 import ResponsiveHeader from "@/components/navigation/ResponsiveHeader";
 import { DeviceUtils } from "@/utils/DeviceUtils";
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { useSafeTVEventHandler } from "@/hooks/useSafeTVEventHandler";
 
 type SectionItem = {
   component: React.ReactElement;
@@ -226,7 +226,7 @@ export default function SettingsScreen() {
     [currentFocusIndex, sections.length, deviceType]
   );
 
-  useTVEventHandler(deviceType === "tv" ? handleTVEvent : () => { });
+  useSafeTVEventHandler(deviceType === "tv" ? handleTVEvent : undefined);
 
   // 动态样式
   const dynamicStyles = createResponsiveStyles(deviceType, spacing, insets);

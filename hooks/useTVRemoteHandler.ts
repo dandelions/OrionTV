@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
-import { useTVEventHandler, HWEvent } from "react-native";
+import type { HWEvent } from "react-native";
 import usePlayerStore from "@/stores/playerStore";
+import { useSafeTVEventHandler } from "@/hooks/useSafeTVEventHandler";
 
 const SEEK_STEP = 20 * 1000; // 快进/快退的时间步长（毫秒）
 
@@ -115,7 +116,7 @@ export const useTVRemoteHandler = () => {
     [showControls, showEpisodeModal, setShowControls, resetTimer, togglePlayPause, seek]
   );
 
-  useTVEventHandler(handleTVEvent);
+  useSafeTVEventHandler(handleTVEvent);
 
   // 处理屏幕点击事件
   const onScreenPress = () => {

@@ -18,6 +18,7 @@ import usePlayerStore, { selectCurrentEpisode } from "@/stores/playerStore";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import { useVideoHandlers } from "@/hooks/useVideoHandlers";
 import Logger from '@/utils/Logger';
+import { MAIN_ROUTES, navigateToMainRoute } from "@/utils/navigation";
 
 const logger = Logger.withTag('PlayScreen');
 
@@ -65,6 +66,10 @@ const createResponsiveStyles = (deviceType: string) => {
       justifyContent: "center",
       alignItems: "center",
       zIndex: 10,
+    },
+    controlsContainer: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 20,
     },
   });
 };
@@ -181,7 +186,7 @@ export default function PlayScreen() {
         setShowControls(false);
         return true;
       }
-      router.back();
+      navigateToMainRoute(router, MAIN_ROUTES.home);
       return true;
     };
 
@@ -214,12 +219,12 @@ export default function PlayScreen() {
   }
 
   return (
-    <ThemedView focusable style={dynamicStyles.container}>
+    <ThemedView focusable={!showControls} style={dynamicStyles.container}>
       <TouchableOpacity
         activeOpacity={1}
         style={dynamicStyles.videoContainer}
         onPress={onScreenPress}
-        disabled={deviceType !== "tv" && showControls} // 移动端和平板端在显示控制条时禁用触摸
+        disabled={showControls}
       >
         {/* 条件渲染Video组件：只有在有有效URL时才渲染 */}
         {currentEpisode?.url ? (
@@ -227,22 +232,24 @@ export default function PlayScreen() {
         ) : (
           <LoadingContainer style={dynamicStyles.loadingContainer} currentEpisode={currentEpisode} />
         )}
-
-        {showControls && deviceType === "tv" && (
-          <PlayerControls showControls={showControls} setShowControls={setShowControls} />
-        )}
-
-        <SeekingBar />
-
-        {/* 只在Video组件存在且正在加载时显示加载动画覆盖层 */}
-        {currentEpisode?.url && isLoading && (
-          <View style={dynamicStyles.loadingContainer}>
-            <VideoLoadingAnimation showProgressBar />
-          </View>
-        )}
-
-        {/* <NextEpisodeOverlay visible={showNextEpisodeOverlay} onCancel={() => setShowNextEpisodeOverlay(false)} /> */}
       </TouchableOpacity>
+
+      {showControls && deviceType === "tv" && (
+        <View style={dynamicStyles.controlsContainer} pointerEvents="box-none">
+          <PlayerControls showControls={showControls} setShowControls={setShowControls} />
+        </View>
+      )}
+
+      <SeekingBar />
+
+      {/* 只在Video组件存在且正在加载时显示加载动画覆盖层 */}
+      {currentEpisode?.url && isLoading && (
+        <View style={dynamicStyles.loadingContainer}>
+          <VideoLoadingAnimation showProgressBar />
+        </View>
+      )}
+
+      {/* <NextEpisodeOverlay visible={showNextEpisodeOverlay} onCancel={() => setShowNextEpisodeOverlay(false)} /> */}
 
       <EpisodeSelectionModal />
       <SourceSelectionModal />

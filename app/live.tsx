@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { View, FlatList, StyleSheet, ActivityIndicator, Modal, useTVEventHandler, HWEvent, Text } from "react-native";
+import { View, FlatList, StyleSheet, ActivityIndicator, Modal, type HWEvent, Text, BackHandler } from "react-native";
+import { useFocusEffect, useRouter } from "expo-router";
 import LivePlayer from "@/components/LivePlayer";
 import { fetchAndParseM3u, getPlayableUrl, Channel } from "@/services/m3u";
 import { ThemedView } from "@/components/ThemedView";
@@ -10,8 +11,11 @@ import { getCommonResponsiveStyles } from "@/utils/ResponsiveStyles";
 import ResponsiveNavigation from "@/components/navigation/ResponsiveNavigation";
 import ResponsiveHeader from "@/components/navigation/ResponsiveHeader";
 import { DeviceUtils } from "@/utils/DeviceUtils";
+import { useSafeTVEventHandler } from "@/hooks/useSafeTVEventHandler";
+import { MAIN_ROUTES, navigateToMainRoute } from "@/utils/navigation";
 
 export default function LiveScreen() {
+  const router = useRouter();
   const { m3uUrl } = useSettingsStore();
   
   // 响应式布局配置
@@ -89,18 +93,41 @@ export default function LiveScreen() {
     [channels, currentChannelIndex]
   );
 
+  const handleBackToHome = useCallback(() => {
+    if (isChannelListVisible) {
+      setIsChannelListVisible(false);
+      return true;
+    }
+
+    navigateToMainRoute(router, MAIN_ROUTES.home);
+    return true;
+  }, [isChannelListVisible, router]);
+
   const handleTVEvent = useCallback(
     (event: HWEvent) => {
       if (deviceType !== 'tv') return;
+      if (event.eventType === "menu" || event.eventType === "back") {
+        handleBackToHome();
+        return;
+      }
       if (isChannelListVisible) return;
       if (event.eventType === "down") setIsChannelListVisible(true);
       else if (event.eventType === "left") changeChannel("prev");
       else if (event.eventType === "right") changeChannel("next");
     },
-    [changeChannel, isChannelListVisible, deviceType]
+    [changeChannel, handleBackToHome, isChannelListVisible, deviceType]
   );
 
-  useTVEventHandler(deviceType === 'tv' ? handleTVEvent : () => {});
+  useSafeTVEventHandler(deviceType === 'tv' ? handleTVEvent : undefined);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (deviceType !== "tv") return;
+
+      const backHandler = BackHandler.addEventListener("hardwareBackPress", handleBackToHome);
+      return () => backHandler.remove();
+    }, [deviceType, handleBackToHome])
+  );
 
   // 动态样式
   const dynamicStyles = createResponsiveStyles(deviceType, spacing);

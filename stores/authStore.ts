@@ -57,8 +57,9 @@ const useAuthStore = create<AuthState>((set) => ({
         return;
       }
 
-      const authToken = await AsyncStorage.getItem('authCookies');
-      if (!authToken) {
+      const authCookies = await AsyncStorage.getItem('authCookies');
+      const authToken = await AsyncStorage.getItem('authToken');
+      if (!authCookies && !authToken) {
         if (serverConfig && serverConfig.StorageType === "localstorage") {
           const loginResult = await api.login().catch(() => {
             set({ isLoggedIn: false, isLoginModalVisible: true });

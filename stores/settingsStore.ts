@@ -107,8 +107,9 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       remoteInputEnabled,
       videoSource,
     });
-    if ( currentApiBaseUrl !== processedApiBaseUrl) {
-      await AsyncStorage.setItem('authCookies', '');
+    if (currentApiBaseUrl !== processedApiBaseUrl) {
+      await AsyncStorage.removeItem('authCookies');
+      await AsyncStorage.removeItem('authToken');
     }
     api.setBaseUrl(processedApiBaseUrl);
     // Also update the URL in the state so the input field shows the processed URL

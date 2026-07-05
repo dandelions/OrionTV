@@ -57,6 +57,7 @@ export default function FavoritesScreen() {
         loading={loading}
         error={error}
         emptyMessage="暂无收藏"
+        handleBackToTop={false}
       />
     </>
   );

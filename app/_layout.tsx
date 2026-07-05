@@ -16,6 +16,7 @@ import { UpdateModal } from "@/components/UpdateModal";
 import { UPDATE_CONFIG } from "@/constants/UpdateConfig";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
 import Logger from '@/utils/Logger';
+import { useTVBackNavigation } from "@/hooks/useTVBackNavigation";
 
 const logger = Logger.withTag('RootLayout');
 
@@ -32,6 +33,7 @@ export default function RootLayout() {
   const { checkLoginStatus } = useAuthStore();
   const { checkForUpdate, lastCheckTime } = useUpdateStore();
   const responsiveConfig = useResponsiveLayout();
+  useTVBackNavigation();
 
   useEffect(() => {
     const initializeApp = async () => {
