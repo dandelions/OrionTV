@@ -55,6 +55,7 @@ export interface PlayRecord {
   title: string;
   source_name: string;
   cover: string;
+  search_title: string;
   index: number;
   total_episodes: number;
   play_time: number;

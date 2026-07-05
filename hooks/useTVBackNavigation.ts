@@ -11,8 +11,15 @@ type TVEventControlModule = {
   disableTVMenuKey?: () => void;
 };
 
+type ExitAppModule = {
+  exitApp?: () => void;
+};
+
 const getTVEventControl = () =>
   (ReactNative as { TVEventControl?: TVEventControlModule }).TVEventControl;
+
+const getExitAppModule = () =>
+  ReactNative.NativeModules?.OrionExitApp as ExitAppModule | undefined;
 
 export const useTVBackNavigation = () => {
   const router = useRouter();
@@ -46,6 +53,17 @@ export const useTVBackNavigation = () => {
     }, EXIT_REENABLE_DELAY_MS);
   }, [clearReenableTimer]);
 
+  const exitApp = useCallback(() => {
+    const nativeExitApp = getExitAppModule()?.exitApp;
+    if (nativeExitApp) {
+      nativeExitApp();
+      return;
+    }
+
+    temporarilyAllowSystemMenuExit();
+    BackHandler.exitApp();
+  }, [temporarilyAllowSystemMenuExit]);
+
   const showExitConfirmation = useCallback(() => {
     if (isExitAlertVisibleRef.current) {
       return true;
@@ -54,7 +72,7 @@ export const useTVBackNavigation = () => {
     isExitAlertVisibleRef.current = true;
     Alert.alert(
       "退出 OrionTV",
-      "确定要退出应用吗？选择退出后，请再按一次返回键退出到 Apple TV 主屏幕。",
+      "确定要退出应用吗？",
       [
         {
           text: "取消",
@@ -69,14 +87,14 @@ export const useTVBackNavigation = () => {
           style: "destructive",
           onPress: () => {
             isExitAlertVisibleRef.current = false;
-            temporarilyAllowSystemMenuExit();
+            exitApp();
           },
         },
       ]
     );
 
     return true;
-  }, [enableTVMenuKey, temporarilyAllowSystemMenuExit]);
+  }, [enableTVMenuKey, exitApp]);
 
   useEffect(() => {
     if (!Platform.isTV) return;

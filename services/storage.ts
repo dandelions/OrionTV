@@ -204,6 +204,7 @@ export class PlayRecordManager {
     for (const key in apiRecords) {
       mergedRecords[key] = {
         ...apiRecords[key],
+        search_title: apiRecords[key].search_title || apiRecords[key].title,
         ...localSettings[key],
       };
     }

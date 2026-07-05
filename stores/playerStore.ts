@@ -362,6 +362,7 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
     }
 
     const { detail } = useDetailStore.getState();
+    const searchTitle = useDetailStore.getState().q || detail?.title || "";
     const { currentEpisodeIndex, episodes, status, introEndTime, outroStartTime } = get();
     if (detail && status?.isLoaded) {
       const existingRecord = {
@@ -371,6 +372,7 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
       PlayRecordManager.save(detail.source, detail.id.toString(), {
         title: detail.title,
         cover: detail.poster || "",
+        search_title: searchTitle,
         index: currentEpisodeIndex + 1,
         total_episodes: episodes.length,
         play_time: Math.floor(status.positionMillis / 1000),
@@ -379,6 +381,8 @@ const usePlayerStore = create<PlayerState>((set, get) => ({
         year: detail.year || "",
         ...existingRecord,
         ...updates,
+      }).catch((error) => {
+        logger.error("Failed to save play record:", error);
       });
     }
   },
