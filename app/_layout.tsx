@@ -33,6 +33,7 @@ export default function RootLayout() {
   const { checkLoginStatus } = useAuthStore();
   const { checkForUpdate, lastCheckTime } = useUpdateStore();
   const responsiveConfig = useResponsiveLayout();
+  const shouldShowToast = !Platform.isTV;
   useTVBackNavigation();
 
   useEffect(() => {
@@ -97,7 +98,7 @@ export default function RootLayout() {
             <Stack.Screen name="+not-found" />
           </Stack>
         </View>
-        <Toast />
+        {shouldShowToast && <Toast />}
         <LoginModal />
         <UpdateModal />
       </ThemeProvider>
