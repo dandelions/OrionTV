@@ -1,0 +1,124 @@
+name: Build Unsigned IPA
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: "构建目标（tvos = Apple TV，ios = iPhone/iPad）"
+        type: choice
+        options:
+          - tvos
+          - ios
+        default: tvos
+      release_tag:
+        description: "可选：填写后创建同名 Release 并上传 IPA，留空仅上传构建产物"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build unsigned ${{ inputs.platform }} IPA
+    runs-on: macos-14
+    timeout-minutes: 120
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "yarn"
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Get version from package.json
+        id: package-version
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Generate native project
+        env:
+          EXPO_TV: ${{ inputs.platform == 'tvos' && '1' || '' }}
+        run: npx expo prebuild --clean --platform ios
+
+      - name: Resolve Xcode scheme
+        id: scheme
+        run: |
+          set -euo pipefail
+          WORKSPACE=$(ls -d ios/*.xcworkspace | head -n 1)
+          echo "workspace=$WORKSPACE" >> $GITHUB_OUTPUT
+          SCHEMES=$(xcodebuild -workspace "$WORKSPACE" -list -json 2>/dev/null | python3 -c "import json,sys; raw=sys.stdin.read(); print(' '.join(json.loads(raw[raw.find('{'):])['workspace']['schemes']))")
+          echo "schemes=$SCHEMES"
+          for candidate in OrionTV OrionTV-tvOS; do
+            if echo " $SCHEMES " | grep -q " $candidate "; then
+              echo "scheme=$candidate" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+          done
+          echo "scheme=$(echo $SCHEMES | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+      - name: Build unsigned app
+        env:
+          SDK: ${{ inputs.platform == 'tvos' && 'appletvos' || 'iphoneos' }}
+          DESTINATION: ${{ inputs.platform == 'tvos' && 'generic/platform=tvOS' || 'generic/platform=iOS' }}
+        run: |
+          xcodebuild \
+            -workspace "${{ steps.scheme.outputs.workspace }}" \
+            -scheme "${{ steps.scheme.outputs.scheme }}" \
+            -configuration Release \
+            -sdk "$SDK" \
+            -destination "$DESTINATION" \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_ENTITLEMENTS="" \
+            build
+
+      - name: Package IPA
+        env:
+          VERSION: ${{ steps.package-version.outputs.version }}
+          PLATFORM: ${{ inputs.platform }}
+        run: |
+          set -euo pipefail
+          APP_PATH=$(find build/Build/Products -maxdepth 2 -name "*.app" -type d | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "未找到构建产物 .app"
+            ls -R build/Build/Products
+            exit 1
+          fi
+          echo "APP_PATH=$APP_PATH"
+
+          mkdir -p artifacts Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qry "artifacts/orionTV.$VERSION.$PLATFORM.unsigned.ipa" Payload
+          rm -rf Payload
+
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "artifacts/orionTV.$VERSION.$PLATFORM.unsigned.app.zip"
+          ls -lh artifacts
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: orionTV-${{ inputs.platform }}-unsigned
+          path: artifacts/
+          retention-days: 30
+
+      - name: Upload IPA to Release
+        if: ${{ inputs.release_tag != '' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          name: ${{ inputs.release_tag }}
+          prerelease: true
+          files: artifacts/*.ipa
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
