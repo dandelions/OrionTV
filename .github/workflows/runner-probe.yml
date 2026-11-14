@@ -1,0 +1,13 @@
+name: Runner Probe
+on:
+  workflow_dispatch:
+jobs:
+  probe:
+    name: Probe ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, macos-13, macos-14, macos-15, macos-14-large]
+    steps:
+      - run: uname -a && xcodebuild -version && xcrun --sdk appletvos --show-sdk-version
