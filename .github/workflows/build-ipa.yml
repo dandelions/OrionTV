@@ -22,7 +22,7 @@ permissions:
 jobs:
   build:
     name: Build unsigned ${{ inputs.platform }} IPA
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 120
     env:
       CI: "1"
