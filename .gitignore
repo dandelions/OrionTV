@@ -2,6 +2,7 @@ node_modules/
 .expo/
 dist/
 build_output/
+build/
 ios/
 android/
 npm-debug.*

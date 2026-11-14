@@ -22,6 +22,7 @@ export interface CategoryTagConfig {
   type?: string;
   format?: string;
   query?: string;
+  sort?: "recommend" | "time";
 }
 
 export interface CategoryConfig {
@@ -450,10 +451,11 @@ export class API {
     type: "movie" | "tv",
     tag: string,
     pageSize: number = 20,
-    pageStart: number = 0
+    pageStart: number = 0,
+    sort: "recommend" | "time" = "recommend"
   ): Promise<DoubanResponse> {
     const data = await fetchJsonWithTimeout(
-      `https://movie.douban.com/j/search_subjects?type=${type}&tag=${encodeURIComponent(tag)}&sort=recommend&page_limit=${pageSize}&page_start=${pageStart}`,
+      `https://movie.douban.com/j/search_subjects?type=${type}&tag=${encodeURIComponent(tag)}&sort=${sort}&page_limit=${pageSize}&page_start=${pageStart}`,
       DOUBAN_HEADERS
     );
     const list: DoubanItem[] = (data?.subjects || []).map((item: any) => ({

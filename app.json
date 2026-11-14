@@ -5,6 +5,7 @@
         "@react-native-tvos/config-tv",
         {
           "androidTVBanner": "./assets/tv_icons/icon-400x240.png",
+          "tvosDeploymentTarget": "15.0",
           "appleTVImages": {
             "icon": "./assets/tv_icons/icon-1280x768.png",
             "iconSmall": "./assets/tv_icons/icon-400x240.png",
@@ -20,7 +21,8 @@
         "expo-build-properties",
         {
           "ios": {
-            "newArchEnabled": false
+            "newArchEnabled": false,
+            "deploymentTarget": "15.0"
           },
           "android": {
             "newArchEnabled": false,
@@ -30,7 +32,8 @@
         }
       ],
       "expo-router",
-      "./plugins/withOrionExitApp"
+      "./plugins/withOrionExitApp",
+      "./plugins/withTVBuildSettings"
     ],
     "experiments": {
       "typedRoutes": true

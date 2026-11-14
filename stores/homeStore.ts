@@ -37,8 +37,23 @@ export interface Category {
 
 const recordCategory: Category = { title: "最近播放", type: "record" };
 
+// 豆瓣 j/search_subjects 支持按时间排序，服务端 /api/douban 固定 recommend，所以「最新」标签走客户端直连
+const LATEST_TAGS: Record<string, CategoryTag> = {
+  剧集: { name: "最新", api: "list", kind: "tv", query: "热门", sort: "time" },
+  电视剧: { name: "最新", api: "list", kind: "tv", query: "热门", sort: "time" },
+  综艺: { name: "最新", api: "list", kind: "tv", query: "综艺", sort: "time" },
+};
+
+// 服务端返回的分类会覆盖内置分类，这里补回缺失的「最新」标签
+const withLatestTag = (category: Category): Category => {
+  const latest = LATEST_TAGS[category.title];
+  if (!latest || !category.tags?.length) return category;
+  if (category.tags.some((tag) => tag.name === latest.name)) return category;
+  return { ...category, tags: [latest, ...category.tags] };
+};
+
 // 与 MoonTVPlus 前台（侧边栏 + 豆瓣页选择器）保持一致，服务器未提供 /api/categories 时使用
-const defaultCategories: Category[] = [
+const baseCategories: Category[] = [
   recordCategory,
   {
     title: "电影",
@@ -86,6 +101,8 @@ const defaultCategories: Category[] = [
     ],
   },
 ];
+
+const defaultCategories: Category[] = baseCategories.map(withLatestTag);
 
 // 添加缓存项接口
 interface CacheItem {
@@ -229,7 +246,8 @@ const fetchTagItemsDirect = async (
         tag.kind || "movie",
         tag.query || "",
         PAGE_SIZE,
-        pageStart
+        pageStart,
+        tag.sort
       );
       return {
         items: mapDoubanItems(result.list || []),
@@ -253,6 +271,16 @@ const fetchTagItems = async (
   tag: CategoryTag,
   pageStart: number
 ): Promise<{ items: RowItem[]; hasMore: boolean }> => {
+  // 按更新时间排序只有豆瓣 j/search_subjects 支持，服务端接口没有该参数
+  if (tag.sort === "time") {
+    try {
+      return await fetchTagItemsDirect(tag, pageStart);
+    } catch (directError) {
+      console.warn("客户端直连豆瓣失败", directError);
+      throw new Error("CATEGORY_FETCH_FAILED");
+    }
+  }
+
   if (preferDirectFetch) {
     try {
       return await fetchTagItemsDirect(tag, pageStart);
@@ -330,7 +358,7 @@ const useHomeStore = create<HomeState>((set, get) => ({
         return;
       }
 
-      get().applyCategories([recordCategory, ...remoteCategories]);
+      get().applyCategories([recordCategory, ...remoteCategories.map(withLatestTag)]);
     } catch (err) {
       console.warn("获取服务器分类失败，使用内置分类", err);
       get().applyCategories(defaultCategories);
