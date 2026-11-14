@@ -8,7 +8,7 @@ import VideoCard from "@/components/VideoCard";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Search, Settings, LogOut, Heart } from "lucide-react-native";
 import { StyledButton } from "@/components/StyledButton";
-import useHomeStore, { RowItem, Category } from "@/stores/homeStore";
+import useHomeStore, { RowItem, Category, CategoryTag } from "@/stores/homeStore";
 import useAuthStore from "@/stores/authStore";
 import CustomScrollView from "@/components/CustomScrollView";
 import { useResponsiveLayout } from "@/hooks/useResponsiveLayout";
@@ -39,6 +39,7 @@ export default function HomeScreen() {
     loading,
     loadingMore,
     error,
+    loadCategories,
     fetchInitialData,
     loadMoreData,
     selectCategory,
@@ -53,6 +54,11 @@ export default function HomeScreen() {
       refreshPlayRecords();
     }, [refreshPlayRecords])
   );
+
+  // 从服务器动态读取分类配置（服务器不支持时回退到内置分类）
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories, apiConfigStatus.isConfigured]);
 
   // 双击返回退出逻辑（只限当前页面）
   const backPressTimeRef = useRef<number | null>(null);
@@ -93,7 +99,7 @@ export default function HomeScreen() {
     // 如果是容器分类且没有选择标签，设置默认标签
     if (selectedCategory.tags && !selectedCategory.tag) {
       const defaultTag = selectedCategory.tags[0];
-      setSelectedTag(defaultTag);
+      setSelectedTag(defaultTag.name);
       selectCategory({ ...selectedCategory, tag: defaultTag });
       return;
     }
@@ -142,10 +148,10 @@ export default function HomeScreen() {
     selectCategory(category);
   };
 
-  const handleTagSelect = (tag: string) => {
-    setSelectedTag(tag);
+  const handleTagSelect = (tag: CategoryTag) => {
+    setSelectedTag(tag.name);
     if (selectedCategory) {
-      const categoryWithTag = { ...selectedCategory, tag: tag };
+      const categoryWithTag = { ...selectedCategory, tag };
       selectCategory(categoryWithTag);
     }
   };
@@ -303,11 +309,11 @@ export default function HomeScreen() {
           <FlatList
             data={selectedCategory.tags}
             renderItem={({ item, index }) => {
-              const isSelected = selectedTag === item;
+              const isSelected = selectedTag === item.name;
               return (
                 <StyledButton
                   hasTVPreferredFocus={index === 0}
-                  text={item}
+                  text={item.name}
                   onPress={() => handleTagSelect(item)}
                   isSelected={isSelected}
                   style={dynamicStyles.categoryButton}
@@ -316,7 +322,7 @@ export default function HomeScreen() {
                 />
               );
             }}
-            keyExtractor={(item) => item}
+            keyExtractor={(item) => item.name}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={dynamicStyles.categoryListContent}

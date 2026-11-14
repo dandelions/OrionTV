@@ -5,6 +5,7 @@ export interface DoubanItem {
   title: string;
   poster: string;
   rate?: string;
+  year?: string;
 }
 
 export interface DoubanResponse {
@@ -12,6 +13,86 @@ export interface DoubanResponse {
   message: string;
   list: DoubanItem[];
 }
+
+export interface CategoryTagConfig {
+  name: string;
+  api: "categories" | "recommends" | "list" | "bangumi";
+  kind?: "movie" | "tv";
+  category?: string;
+  type?: string;
+  format?: string;
+  query?: string;
+}
+
+export interface CategoryConfig {
+  id: string;
+  name: string;
+  tags: CategoryTagConfig[];
+}
+
+export interface BangumiCalendarDay {
+  weekday: {
+    en: string;
+    cn?: string;
+  };
+  items: {
+    id: number;
+    name: string;
+    name_cn?: string;
+    rating?: { score: number };
+    air_date?: string;
+    images?: {
+      large?: string;
+      common?: string;
+      medium?: string;
+      small?: string;
+      grid?: string;
+    };
+  }[];
+}
+
+// 豆瓣接口在部分服务器上会被封禁（服务端直连返回 500），此时改用客户端直连 CDN 镜像
+const DOUBAN_MIRRORS = [
+  "https://m.douban.cmliussss.net",
+  "https://m.douban.cmliussss.com",
+  "https://m.douban.com",
+];
+
+const DOUBAN_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
+  Referer: "https://movie.douban.com/",
+  Accept: "application/json, text/plain, */*",
+};
+
+const fetchJsonWithTimeout = async (
+  url: string,
+  headers?: Record<string, string>
+): Promise<any> => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(url, { signal: controller.signal, headers });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+const fetchDoubanFromMirrors = async (path: string): Promise<any> => {
+  let lastError: unknown;
+  for (const mirror of DOUBAN_MIRRORS) {
+    try {
+      return await fetchJsonWithTimeout(`${mirror}${path}`, DOUBAN_HEADERS);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error("豆瓣请求失败");
+};
 
 export interface VideoDetail {
   id: string;
@@ -269,6 +350,123 @@ export class API {
     const url = `/api/douban?type=${type}&tag=${encodeURIComponent(tag)}&pageSize=${pageSize}&pageStart=${pageStart}`;
     const response = await this._fetch(url);
     return response.json();
+  }
+
+  async getDoubanCategories(
+    kind: "movie" | "tv",
+    category: string,
+    type: string,
+    pageSize: number = 20,
+    pageStart: number = 0
+  ): Promise<DoubanResponse> {
+    const url = `/api/douban/categories?kind=${kind}&category=${encodeURIComponent(category)}&type=${encodeURIComponent(type)}&limit=${pageSize}&start=${pageStart}`;
+    const response = await this._fetch(url);
+    return response.json();
+  }
+
+  async getDoubanRecommends(params: {
+    kind: "movie" | "tv";
+    category?: string;
+    format?: string;
+    pageSize?: number;
+    pageStart?: number;
+  }): Promise<DoubanResponse> {
+    const { kind, category = "", format = "", pageSize = 20, pageStart = 0 } = params;
+    const url = `/api/douban/recommends?kind=${kind}&limit=${pageSize}&start=${pageStart}&category=${encodeURIComponent(category)}&format=${encodeURIComponent(format)}`;
+    const response = await this._fetch(url);
+    return response.json();
+  }
+
+  async getCategories(): Promise<{ categories: CategoryConfig[] }> {
+    const response = await this._fetch("/api/categories");
+    return response.json();
+  }
+
+  async getBangumiCalendar(): Promise<BangumiCalendarDay[]> {
+    const response = await this._fetch("/api/bangumi/calendar");
+    return response.json();
+  }
+
+  // 以下为客户端直连豆瓣/番组计划的备用实现，用于服务端接口不可用时
+  async getDoubanCategoriesDirect(
+    kind: "movie" | "tv",
+    category: string,
+    type: string,
+    pageSize: number = 20,
+    pageStart: number = 0
+  ): Promise<DoubanResponse> {
+    const data = await fetchDoubanFromMirrors(
+      `/rexxar/api/v2/subject/recent_hot/${kind}?start=${pageStart}&limit=${pageSize}&category=${encodeURIComponent(category)}&type=${encodeURIComponent(type)}`
+    );
+    const list: DoubanItem[] = (data?.items || []).map((item: any) => ({
+      title: item.title,
+      poster: item.pic?.normal || item.pic?.large || "",
+      rate: item.rating?.value ? item.rating.value.toFixed(1) : "",
+      year: item.card_subtitle?.match(/(\d{4})/)?.[1] || "",
+    }));
+    return { code: 200, message: "获取成功", list };
+  }
+
+  async getDoubanRecommendsDirect(params: {
+    kind: "movie" | "tv";
+    category?: string;
+    format?: string;
+    pageSize?: number;
+    pageStart?: number;
+  }): Promise<DoubanResponse> {
+    const { kind, category = "", format = "", pageSize = 20, pageStart = 0 } = params;
+
+    const selectedCategories: Record<string, string> = { 类型: category };
+    if (format) {
+      selectedCategories["形式"] = format;
+    }
+    const tags = [category, format].filter(Boolean).join(",");
+
+    const query = [
+      "refresh=0",
+      `start=${pageStart}`,
+      `count=${pageSize}`,
+      `selected_categories=${encodeURIComponent(JSON.stringify(selectedCategories))}`,
+      "uncollect=false",
+      "score_range=0,10",
+      `tags=${encodeURIComponent(tags)}`,
+    ].join("&");
+
+    const data = await fetchDoubanFromMirrors(
+      `/rexxar/api/v2/${kind}/recommend?${query}`
+    );
+    const list: DoubanItem[] = (data?.items || [])
+      .filter((item: any) => item.type === "movie" || item.type === "tv")
+      .map((item: any) => ({
+        title: item.title,
+        poster: item.pic?.normal || item.pic?.large || "",
+        rate: item.rating?.value ? item.rating.value.toFixed(1) : "",
+        year: item.year || "",
+      }));
+    return { code: 200, message: "获取成功", list };
+  }
+
+  async getDoubanListDirect(
+    type: "movie" | "tv",
+    tag: string,
+    pageSize: number = 20,
+    pageStart: number = 0
+  ): Promise<DoubanResponse> {
+    const data = await fetchJsonWithTimeout(
+      `https://movie.douban.com/j/search_subjects?type=${type}&tag=${encodeURIComponent(tag)}&sort=recommend&page_limit=${pageSize}&page_start=${pageStart}`,
+      DOUBAN_HEADERS
+    );
+    const list: DoubanItem[] = (data?.subjects || []).map((item: any) => ({
+      title: item.title,
+      poster: item.cover || "",
+      rate: item.rate || "",
+      year: "",
+    }));
+    return { code: 200, message: "获取成功", list };
+  }
+
+  async getBangumiCalendarDirect(): Promise<BangumiCalendarDay[]> {
+    return fetchJsonWithTimeout("https://api.bgm.tv/calendar");
   }
 
   async searchVideos(query: string): Promise<{ results: SearchResult[] }> {
