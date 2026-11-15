@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Modal, View, TextInput, StyleSheet, ActivityIndicator, Alert, Keyboard, InteractionManager } from "react-native";
-import { usePathname } from "expo-router";
 import Toast from "react-native-toast-message";
 import useAuthStore from "@/stores/authStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -20,15 +19,13 @@ const LoginModal = () => {
   const [isLoading, setIsLoading] = useState(false);
   const usernameInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
-  const pathname = usePathname();
-  const isSettingsPage = pathname.includes("settings");
 
   const [isModalReady, setIsModalReady] = useState(false);
 
   // Load saved credentials when modal opens
   useEffect(() => {
-    if (isLoginModalVisible && !isSettingsPage) {
-            // 先确保键盘状态清理
+    if (isLoginModalVisible) {
+      // 先确保键盘状态清理
       Keyboard.dismiss();
 
       const loadCredentials = async () => {
@@ -50,11 +47,11 @@ const LoginModal = () => {
         setIsModalReady(false);
       };
     }
-  }, [isLoginModalVisible, isSettingsPage]);
+  }, [isLoginModalVisible]);
 
   // Focus management with better TV remote handling
   useEffect(() => {
-    if (isModalReady && isLoginModalVisible && !isSettingsPage) {
+    if (isModalReady && isLoginModalVisible) {
       const isUsernameVisible = serverConfig?.StorageType !== "localstorage";
 
       // Use a small delay to ensure the modal is fully rendered
@@ -68,7 +65,7 @@ const LoginModal = () => {
 
       return () => clearTimeout(focusTimeout);
     }
-  }, [isModalReady, isLoginModalVisible, serverConfig, isSettingsPage]);
+  }, [isModalReady, isLoginModalVisible, serverConfig]);
 
   // 清理 effect - 确保 Modal 关闭时清理所有状态
   useEffect(() => {
@@ -140,7 +137,7 @@ const LoginModal = () => {
   return (
     <Modal
       transparent={true}
-      visible={isLoginModalVisible && !isSettingsPage}
+      visible={isLoginModalVisible}
       animationType="fade"
       onRequestClose={hideLoginModal}
     >

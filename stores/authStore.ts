@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { api } from "@/services/api";
+import { LoginCredentialsManager } from "@/services/storage";
 import { useSettingsStore } from "./settingsStore";
 import Toast from "react-native-toast-message";
 import Logger from "@/utils/Logger";
@@ -60,6 +61,16 @@ const useAuthStore = create<AuthState>((set) => ({
       const authCookies = await AsyncStorage.getItem('authCookies');
       const authToken = await AsyncStorage.getItem('authToken');
       if (!authCookies && !authToken) {
+        // 优先使用本地存储的账号密码自动登录
+        const credentials = await LoginCredentialsManager.get();
+        if (credentials && credentials.password) {
+          const loginResult = await api.login(credentials.username || undefined, credentials.password).catch(() => null);
+          if (loginResult && loginResult.ok) {
+            set({ isLoggedIn: true, isLoginModalVisible: false });
+            return;
+          }
+        }
+
         if (serverConfig && serverConfig.StorageType === "localstorage") {
           const loginResult = await api.login().catch(() => {
             set({ isLoggedIn: false, isLoginModalVisible: true });
@@ -85,7 +96,8 @@ const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     try {
       await api.logout();
-      set({ isLoggedIn: false, isLoginModalVisible: true });
+      await LoginCredentialsManager.clear();
+      set({ isLoggedIn: false, isLoginModalVisible: false });
     } catch (error) {
       logger.error("Failed to logout:", error);
     }

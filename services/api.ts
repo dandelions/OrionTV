@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { LoginCredentialsManager } from "./storage";
 
 // region: --- Interface Definitions ---
 export interface DoubanItem {
@@ -214,6 +215,77 @@ export class API {
     };
   }
 
+  private isReauthing = false;
+  private reauthPromise: Promise<boolean> | null = null;
+
+  public async tryAutoReauth(): Promise<boolean> {
+    if (this.isReauthing && this.reauthPromise) {
+      return this.reauthPromise;
+    }
+
+    this.isReauthing = true;
+    this.reauthPromise = (async () => {
+      try {
+        // 1. 如果已保存账密，优先使用本地存储的账号密码自动重新登录
+        const credentials = await LoginCredentialsManager.get();
+        if (credentials && credentials.password) {
+          const authRes = await fetch(`${this.baseURL}/api/login`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "User-Agent": "OrionTV" },
+            body: JSON.stringify({
+              username: credentials.username || undefined,
+              password: credentials.password,
+            }),
+          });
+          if (authRes.ok) {
+            const cookies = authRes.headers.get("Set-Cookie");
+            if (cookies) {
+              await AsyncStorage.setItem("authCookies", cookies);
+            }
+            const result = await authRes.json();
+            if (result.token) {
+              await AsyncStorage.setItem("authToken", result.token);
+              if (!cookies) {
+                await AsyncStorage.setItem("authCookies", `auth=${result.token}`);
+              }
+            }
+            return true;
+          }
+        }
+
+        // 2. 如果没有保存的账密，尝试调用 /api/auth/refresh 续期
+        const authHeaders = await this.getAuthHeaders();
+        const refreshRes = await fetch(`${this.baseURL}/api/auth/refresh`, {
+          method: "POST",
+          headers: authHeaders,
+        });
+        if (refreshRes.ok) {
+          const cookies = refreshRes.headers.get("Set-Cookie");
+          if (cookies) {
+            await AsyncStorage.setItem("authCookies", cookies);
+          }
+          const result = await refreshRes.json();
+          if (result.token) {
+            await AsyncStorage.setItem("authToken", result.token);
+            if (!cookies) {
+              await AsyncStorage.setItem("authCookies", `auth=${result.token}`);
+            }
+          }
+          return true;
+        }
+
+        return false;
+      } catch {
+        return false;
+      } finally {
+        this.isReauthing = false;
+        this.reauthPromise = null;
+      }
+    })();
+
+    return this.reauthPromise;
+  }
+
   private async _fetch(url: string, options: RequestInit = {}): Promise<Response> {
     if (!this.baseURL) {
       throw new Error("API_URL_NOT_SET");
@@ -226,6 +298,28 @@ export class API {
     });
 
     if (response.status === 401) {
+      const isAuthEndpoint =
+        url.startsWith("/api/login") ||
+        url.startsWith("/api/logout") ||
+        url.startsWith("/api/auth/refresh");
+
+      if (!isAuthEndpoint) {
+        const reauthSuccess = await this.tryAutoReauth();
+        if (reauthSuccess) {
+          const retryHeaders = await this.getAuthHeaders();
+          const retryResponse = await fetch(`${this.baseURL}${url}`, {
+            ...options,
+            headers: this.mergeHeaders(retryHeaders, options.headers),
+          });
+          if (retryResponse.status !== 401) {
+            if (!retryResponse.ok) {
+              throw new Error(`HTTP error! status: ${retryResponse.status}`);
+            }
+            return retryResponse;
+          }
+        }
+      }
+
       throw new Error("UNAUTHORIZED");
     }
 

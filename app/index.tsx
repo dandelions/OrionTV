@@ -356,9 +356,16 @@ export default function HomeScreen() {
         </View>
       ) : error ? (
         <View style={commonStyles.center}>
-          <ThemedText type="subtitle" style={{ padding: spacing }}>
+          <ThemedText type="subtitle" style={{ padding: spacing, textAlign: "center" }}>
             {error}
           </ThemedText>
+          {(error.includes("登录") || error.includes("认证") || error.includes("未授权")) && (
+            <StyledButton
+              text="立即登录"
+              onPress={() => useAuthStore.getState().showLoginModal()}
+              style={{ marginTop: 16, minWidth: 140 }}
+            />
+          )}
         </View>
       ) : (
         <Animated.View style={[dynamicStyles.contentContainer, { opacity: fadeAnim }]}>
