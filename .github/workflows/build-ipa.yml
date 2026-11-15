@@ -1,6 +1,10 @@
 name: Build Unsigned IPA
 
 on:
+  push:
+    branches:
+      - master
+      - main
   workflow_dispatch:
     inputs:
       platform:
@@ -11,7 +15,7 @@ on:
           - ios
         default: tvos
       release_tag:
-        description: "可选：填写后创建同名 Release 并上传 IPA，留空仅上传构建产物"
+        description: "可选：填写后发布到同名 Release，留空仅上传构建产物"
         type: string
         required: false
         default: ""
@@ -19,9 +23,13 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: unsigned-ipa-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    name: Build unsigned ${{ inputs.platform }} IPA
+    name: Build unsigned ${{ inputs.platform || 'tvos' }} IPA
     runs-on: macos-15
     timeout-minutes: 120
     env:
@@ -46,7 +54,7 @@ jobs:
 
       - name: Generate native project
         env:
-          EXPO_TV: ${{ inputs.platform == 'tvos' && '1' || '' }}
+          EXPO_TV: ${{ (inputs.platform || 'tvos') == 'tvos' && '1' || '' }}
         run: npx expo prebuild --clean --platform ios
 
       - name: Resolve Xcode scheme
@@ -67,8 +75,8 @@ jobs:
 
       - name: Build unsigned app
         env:
-          SDK: ${{ inputs.platform == 'tvos' && 'appletvos' || 'iphoneos' }}
-          DESTINATION: ${{ inputs.platform == 'tvos' && 'generic/platform=tvOS' || 'generic/platform=iOS' }}
+          SDK: ${{ (inputs.platform || 'tvos') == 'tvos' && 'appletvos' || 'iphoneos' }}
+          DESTINATION: ${{ (inputs.platform || 'tvos') == 'tvos' && 'generic/platform=tvOS' || 'generic/platform=iOS' }}
         run: |
           xcodebuild \
             -workspace "${{ steps.scheme.outputs.workspace }}" \
@@ -86,7 +94,7 @@ jobs:
       - name: Package IPA
         env:
           VERSION: ${{ steps.package-version.outputs.version }}
-          PLATFORM: ${{ inputs.platform }}
+          PLATFORM: ${{ inputs.platform || 'tvos' }}
         run: |
           set -euo pipefail
           APP_PATH=$(find build/Build/Products -maxdepth 2 -name "*.app" -type d | head -n 1)
@@ -108,17 +116,35 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: orionTV-${{ inputs.platform }}-unsigned
+          name: orionTV-${{ inputs.platform || 'tvos' }}-unsigned
           path: artifacts/
           retention-days: 30
 
-      - name: Upload IPA to Release
-        if: ${{ inputs.release_tag != '' }}
+      - name: Resolve release tag
+        id: release
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            echo "tag=${{ inputs.release_tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=unsigned-v$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+          fi
+          echo "sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Publish IPA to Release
+        if: ${{ github.event_name == 'push' || inputs.release_tag != '' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag }}
-          name: ${{ inputs.release_tag }}
+          tag_name: ${{ steps.release.outputs.tag }}
+          name: Unsigned build ${{ steps.release.outputs.tag }}
+          body: |
+            自动构建的未签名安装包，安装到设备前需要用 Sideloadly、AltStore 等工具以你自己的开发者证书重签。
+
+            - 版本：${{ steps.package-version.outputs.version }}
+            - 目标：${{ inputs.platform || 'tvos' }}
+            - 提交：${{ github.sha }}
           prerelease: true
+          make_latest: false
+          overwrite_files: true
           files: artifacts/*.ipa
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
