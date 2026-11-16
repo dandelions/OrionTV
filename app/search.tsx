@@ -1,15 +1,16 @@
 import React, { useState, useRef, useEffect } from "react";
-import { View, TextInput, StyleSheet, Alert, Keyboard, TouchableOpacity } from "react-native";
+import { View, TextInput, StyleSheet, Alert, Keyboard, TouchableOpacity, ScrollView } from "react-native";
 import { ThemedView } from "@/components/ThemedView";
 import { ThemedText } from "@/components/ThemedText";
 import VideoCard from "@/components/VideoCard";
 import VideoLoadingAnimation from "@/components/VideoLoadingAnimation";
 import { api, SearchResult } from "@/services/api";
-import { Search, QrCode } from "lucide-react-native";
+import { Search, QrCode, Clock, Trash2 } from "lucide-react-native";
 import { StyledButton } from "@/components/StyledButton";
 import { useRemoteControlStore } from "@/stores/remoteControlStore";
 import { RemoteControlModal } from "@/components/RemoteControlModal";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { SearchHistoryManager } from "@/services/storage";
 import { useRouter } from "expo-router";
 import { Colors } from "@/constants/Colors";
 import CustomScrollView from "@/components/CustomScrollView";
@@ -28,6 +29,7 @@ export default function SearchScreen() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [history, setHistory] = useState<string[]>([]);
   const textInputRef = useRef<TextInput>(null);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const { showModal: showRemoteModal, lastMessage, targetPage, clearMessage } = useRemoteControlStore();
@@ -38,6 +40,21 @@ export default function SearchScreen() {
   const responsiveConfig = useResponsiveLayout();
   const commonStyles = getCommonResponsiveStyles(responsiveConfig);
   const { deviceType, spacing } = responsiveConfig;
+
+  const loadHistory = async () => {
+    try {
+      const list = await SearchHistoryManager.get();
+      if (Array.isArray(list)) {
+        setHistory(list.slice(0, 20));
+      }
+    } catch (err) {
+      logger.info("Failed to load search history:", err);
+    }
+  };
+
+  useEffect(() => {
+    loadHistory();
+  }, []);
 
   useEffect(() => {
     if (lastMessage && targetPage === 'search') {
@@ -50,14 +67,6 @@ export default function SearchScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastMessage, targetPage]);
 
-  // useEffect(() => {
-  //   // Focus the text input when the screen loads
-  //   const timer = setTimeout(() => {
-  //     textInputRef.current?.focus();
-  //   }, 200);
-  //   return () => clearTimeout(timer);
-  // }, []);
-
   const handleSearch = async (searchText?: string) => {
     const term = typeof searchText === "string" ? searchText : keyword;
     if (!term.trim()) {
@@ -68,7 +77,9 @@ export default function SearchScreen() {
     setLoading(true);
     setError(null);
     try {
-      const response = await api.searchVideos(term);
+      await SearchHistoryManager.add(term.trim());
+      loadHistory();
+      const response = await api.searchVideos(term.trim());
       if (response.results.length > 0) {
         setResults(response.results);
       } else {
@@ -80,6 +91,16 @@ export default function SearchScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSelectHistory = (item: string) => {
+    setKeyword(item);
+    handleSearch(item);
+  };
+
+  const handleClearHistory = async () => {
+    await SearchHistoryManager.clear();
+    setHistory([]);
   };
 
   const onSearchPress = () => handleSearch();
@@ -152,15 +173,47 @@ export default function SearchScreen() {
         <View style={[commonStyles.center, { flex: 1 }]}>
           <ThemedText style={dynamicStyles.errorText}>{error}</ThemedText>
         </View>
-      ) : (
+      ) : results.length > 0 ? (
         <CustomScrollView
           data={results}
           renderItem={renderItem}
           loading={loading}
           error={error}
-          emptyMessage="输入关键词开始搜索"
+          emptyMessage="没有找到相关内容"
           handleBackToTop={false}
         />
+      ) : history.length > 0 ? (
+        <ScrollView style={dynamicStyles.historyScrollView} keyboardShouldPersistTaps="handled">
+          <View style={dynamicStyles.historyHeader}>
+            <View style={dynamicStyles.historyTitleRow}>
+              <Clock size={deviceType === "tv" ? 22 : 18} color="#aaa" />
+              <ThemedText style={dynamicStyles.historyTitle}>搜索历史</ThemedText>
+            </View>
+            <TouchableOpacity
+              onPress={handleClearHistory}
+              style={dynamicStyles.clearButton}
+              activeOpacity={0.7}
+            >
+              <Trash2 size={deviceType === "tv" ? 18 : 16} color="#888" />
+              <ThemedText style={dynamicStyles.clearText}>清空</ThemedText>
+            </TouchableOpacity>
+          </View>
+          <View style={dynamicStyles.historyTagsContainer}>
+            {history.map((item, index) => (
+              <StyledButton
+                key={`${item}-${index}`}
+                text={item}
+                onPress={() => handleSelectHistory(item)}
+                style={dynamicStyles.historyChip}
+                textStyle={dynamicStyles.historyChipText}
+              />
+            ))}
+          </View>
+        </ScrollView>
+      ) : (
+        <View style={[commonStyles.center, { flex: 1 }]}>
+          <ThemedText style={dynamicStyles.emptyText}>输入关键词开始搜索</ThemedText>
+        </View>
       )}
       <RemoteControlModal />
     </>
@@ -236,6 +289,61 @@ const createResponsiveStyles = (deviceType: string, spacing: number) => {
       color: "red",
       fontSize: isMobile ? 14 : 16,
       textAlign: "center",
+    },
+    emptyText: {
+      color: "#888",
+      fontSize: isMobile ? 16 : 20,
+    },
+    historyScrollView: {
+      flex: 1,
+      paddingHorizontal: spacing,
+      paddingTop: spacing / 2,
+    },
+    historyHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: spacing,
+      paddingHorizontal: 4,
+    },
+    historyTitleRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+    },
+    historyTitle: {
+      fontSize: isMobile ? 18 : deviceType === "tv" ? 22 : 20,
+      fontWeight: "bold",
+    },
+    clearButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      borderRadius: 6,
+      backgroundColor: "rgba(255, 255, 255, 0.08)",
+    },
+    clearText: {
+      fontSize: isMobile ? 13 : 15,
+      color: "#888",
+    },
+    historyTagsContainer: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: isMobile ? 8 : 12,
+      paddingBottom: spacing * 2,
+    },
+    historyChip: {
+      paddingHorizontal: isMobile ? 12 : deviceType === "tv" ? 18 : 14,
+      paddingVertical: isMobile ? 6 : deviceType === "tv" ? 10 : 8,
+      borderRadius: isMobile ? 6 : 8,
+      backgroundColor: "#2c2c2e",
+      marginBottom: isMobile ? 4 : 6,
+    },
+    historyChipText: {
+      fontSize: isMobile ? 14 : deviceType === "tv" ? 18 : 16,
+      color: "#eee",
     },
   });
 };

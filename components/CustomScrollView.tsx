@@ -132,29 +132,22 @@ const CustomScrollView: React.FC<CustomScrollViewProps> = ({
 
   const rows = groupItemsByRow(data, effectiveColumns);
 
+  const isTV = responsiveConfig.deviceType === "tv";
+
   // 动态样式
   const dynamicStyles = StyleSheet.create({
     listContent: {
       paddingBottom: responsiveConfig.spacing * 2,
-      paddingHorizontal: responsiveConfig.spacing / 2,
+      paddingHorizontal: isTV ? 40 : responsiveConfig.spacing,
     },
     rowContainer: {
       flexDirection: "row",
-      marginBottom: responsiveConfig.spacing,
-    },
-    fullRowContainer: {
-      justifyContent: "space-around",
-      marginRight: responsiveConfig.spacing / 2,
-    },
-    partialRowContainer: {
+      marginBottom: responsiveConfig.spacing * 1.2,
+      gap: responsiveConfig.spacing,
       justifyContent: "flex-start",
     },
     itemContainer: {
       width: responsiveConfig.cardWidth,
-    },
-    itemWithMargin: {
-      width: responsiveConfig.cardWidth,
-      marginRight: responsiveConfig.spacing,
     },
     scrollToTopButton: {
       position: 'absolute',
@@ -178,31 +171,18 @@ const CustomScrollView: React.FC<CustomScrollViewProps> = ({
       >
         {data.length > 0 ? (
           <>
-            {rows.map((row, rowIndex) => {
-              const isFullRow = row.length === effectiveColumns;
-              const rowStyle = isFullRow ? dynamicStyles.fullRowContainer : dynamicStyles.partialRowContainer;
-
-              return (
-                <View key={rowIndex} style={[dynamicStyles.rowContainer, rowStyle]}>
-                  {row.map((item, itemIndex) => {
-                    const actualIndex = rowIndex * effectiveColumns + itemIndex;
-                    const isLastItemInPartialRow = !isFullRow && itemIndex === row.length - 1;
-                    const itemStyle = isLastItemInPartialRow ? dynamicStyles.itemContainer : dynamicStyles.itemWithMargin;
-
-                    const cardProps = {
-                      key: actualIndex,
-                      style: isFullRow ? dynamicStyles.itemContainer : itemStyle,
-                    };
-
-                    return (
-                      <View {...cardProps}>
-                        {renderItem({ item, index: actualIndex })}
-                      </View>
-                    );
-                  })}
-                </View>
-              );
-            })}
+            {rows.map((row, rowIndex) => (
+              <View key={rowIndex} style={dynamicStyles.rowContainer}>
+                {row.map((item, itemIndex) => {
+                  const actualIndex = rowIndex * effectiveColumns + itemIndex;
+                  return (
+                    <View key={actualIndex} style={dynamicStyles.itemContainer}>
+                      {renderItem({ item, index: actualIndex })}
+                    </View>
+                  );
+                })}
+              </View>
+            ))}
             {renderFooter()}
           </>
         ) : (

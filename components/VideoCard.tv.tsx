@@ -55,7 +55,7 @@ const VideoCard = forwardRef<View, VideoCardProps>(
 
     const scale = useRef(new Animated.Value(1)).current;
 
-    const deviceType = useResponsiveLayout().deviceType;
+    const { deviceType, cardWidth, cardHeight } = useResponsiveLayout();
 
     const animatedStyle = {
       transform: [{ scale }],
@@ -165,13 +165,13 @@ const VideoCard = forwardRef<View, VideoCardProps>(
           // activeOpacity={1}
           delayLongPress={1000}
         >
-          <View style={styles.card}>
+          <View style={[styles.card, { width: cardWidth, height: cardHeight }]}>
             <Image source={{ uri: api.getImageProxyUrl(poster) }} style={styles.poster} />
             {isFocused && (
               <View style={styles.overlay}>
                 {isContinueWatching && (
                   <View style={styles.continueWatchingBadge}>
-                    <Play size={16} color="#ffffff" fill="#ffffff" />
+                    <Play size={18} color="#ffffff" fill="#ffffff" />
                     <ThemedText style={styles.continueWatchingText}>继续观看</ThemedText>
                   </View>
                 )}
@@ -187,7 +187,7 @@ const VideoCard = forwardRef<View, VideoCardProps>(
 
             {rate && (
               <View style={styles.ratingContainer}>
-                <Star size={12} color="#FFD700" fill="#FFD700" />
+                <Star size={14} color="#FFD700" fill="#FFD700" />
                 <ThemedText style={styles.ratingText}>{rate}</ThemedText>
               </View>
             )}
@@ -202,8 +202,8 @@ const VideoCard = forwardRef<View, VideoCardProps>(
               </View>
             )}
           </View>
-          <View style={styles.infoContainer}>
-            <ThemedText numberOfLines={1}>{title}</ThemedText>
+          <View style={[styles.infoContainer, { width: cardWidth }]}>
+            <ThemedText numberOfLines={1} style={styles.title}>{title}</ThemedText>
             {isContinueWatching && (
               <View style={styles.infoRow}>
                 <ThemedText style={styles.continueLabel}>
@@ -222,38 +222,32 @@ VideoCard.displayName = "VideoCard";
 
 export default VideoCard;
 
-const CARD_WIDTH = 160;
-const CARD_HEIGHT = 240;
-
 const styles = StyleSheet.create({
   wrapper: {
-    marginHorizontal: 8,
+    // 间距由 CustomScrollView 统一管理
   },
   pressable: {
-    width: CARD_WIDTH + 20,
-    height: CARD_HEIGHT + 60,
     justifyContent: 'center',
     alignItems: "center",
     overflow: "visible",
   },
   card: {
-    marginTop: 10,
-    width: CARD_WIDTH,
-    height: CARD_HEIGHT,
-    borderRadius: 8,
+    marginTop: 6,
+    borderRadius: 10,
     backgroundColor: "#222",
     overflow: "hidden",
   },
   poster: {
     width: "100%",
     height: "100%",
+    resizeMode: "cover",
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.3)",
     borderColor: Colors.dark.primary,
-    borderWidth: 2,
-    borderRadius: 8,
+    borderWidth: 3,
+    borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -278,23 +272,22 @@ const styles = StyleSheet.create({
     right: 8,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
     borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   ratingText: {
     color: "#FFD700",
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "bold",
     marginLeft: 4,
   },
   infoContainer: {
-    width: CARD_WIDTH,
     marginTop: 8,
     alignItems: "flex-start",
-    marginBottom: 16,
-    paddingHorizontal: 4,
+    marginBottom: 8,
+    paddingHorizontal: 2,
   },
   infoRow: {
     flexDirection: "row",
@@ -303,32 +296,39 @@ const styles = StyleSheet.create({
   },
   title: {
     color: "white",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
-    textAlign: "center",
+    lineHeight: 24,
+    textAlign: "left",
+    width: "100%",
+  },
+  continueLabel: {
+    fontSize: 13,
+    color: "#aaa",
+    marginTop: 2,
   },
   yearBadge: {
     position: "absolute",
     top: 8,
     right: 8,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
     borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   sourceNameBadge: {
     position: "absolute",
     top: 8,
     left: 8,
-    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
     borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   badgeText: {
     color: "white",
-    fontSize: 12,
-    fontWeight: "bold",
+    fontSize: 13,
+    fontWeight: "600",
   },
   progressContainer: {
     position: "absolute",
@@ -355,9 +355,5 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     fontSize: 12,
     fontWeight: "bold",
-  },
-  continueLabel: {
-    color: Colors.dark.primary,
-    fontSize: 12,
   },
 });

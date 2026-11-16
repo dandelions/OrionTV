@@ -34,7 +34,7 @@ const getLayoutConfig = (
   height: number,
   isPortrait: boolean
 ): ResponsiveConfig => {
-  const spacing = deviceType === "mobile" ? 8 : deviceType === "tablet" ? 12 : 16;
+  let spacing = deviceType === "mobile" ? 8 : deviceType === "tablet" ? 12 : 20;
 
   let columns: number;
   let cardWidth: number;
@@ -55,11 +55,18 @@ const getLayoutConfig = (
       break;
 
     case "tv":
-    default:
-      columns = 5;
-      cardWidth = 160; // Fixed width for TV
-      cardHeight = 240; // Fixed height for TV
+    default: {
+      // 电视端自适应列数与卡片尺寸，收紧间距，增大海报
+      columns = width >= 1600 ? 6 : width >= 1200 ? 5 : 4;
+      const horizontalPadding = 40;
+      const gap = 20;
+      const availableWidth = width - horizontalPadding * 2;
+      const calculatedWidth = (availableWidth - (columns - 1) * gap) / columns;
+      cardWidth = Math.floor(Math.max(calculatedWidth, 220));
+      cardHeight = Math.floor(cardWidth * 1.5); // 2:3 经典海报比例
+      spacing = gap;
       break;
+    }
   }
 
   return {
