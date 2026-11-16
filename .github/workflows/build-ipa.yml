@@ -126,10 +126,18 @@ jobs:
           path: artifacts/
           retention-days: 30
 
+      - name: Move release tag to this commit
+        run: |
+          set -euo pipefail
+          TAG="${{ inputs.release_tag || 'unsigned-latest' }}"
+          git tag -f "$TAG" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$TAG"
+
       - name: Publish to Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ inputs.release_tag || 'unsigned-latest' }}
+          target_commitish: ${{ github.sha }}
           name: 未签名安装包（持续更新）
           body: |
             每次 `master`/`main` 更新都会自动重新构建并覆盖此 Release 中的安装包，下载地址始终不变。
